@@ -7,7 +7,11 @@ from dotenv import load_dotenv
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 
 
-cache = redis.Redis(host=os.getenv("REDIS_HOST", "localhost"), decode_responses=True)
+redis_url = os.getenv("REDIS_URL")
+if redis_url:
+    cache = redis.Redis.from_url(redis_url, decode_responses=True)
+else:
+    cache = redis.Redis(host=os.getenv("REDIS_HOST", "localhost"), decode_responses=True)
 CACHE_TTL = 900  # 15 minutes in seconds
 
 load_dotenv()  # reads your .env file
