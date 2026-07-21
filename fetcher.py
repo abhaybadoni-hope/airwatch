@@ -1,8 +1,14 @@
 import os
 import logging
 import requests
+import json
+import redis
 from dotenv import load_dotenv
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
+
+
+cache = redis.Redis(decode_responses=True)
+CACHE_TTL = 900  # 15 minutes in seconds
 
 load_dotenv()  # reads your .env file
 API_KEY = os.getenv("OPENWEATHER_API_KEY")
@@ -19,7 +25,8 @@ logger = logging.getLogger(__name__)
     retry=retry_if_exception_type(requests.exceptions.RequestException),
     reraise=True
 )
-def fetch_aqi(lat, lon):
+def _fetch_aqi_from_api(lat, lon):
+    # ... your existing fetch body stays exactly the same ...
     url = "http://api.openweathermap.org/data/2.5/air_pollution"
     params = {"lat": lat, "lon": lon, "appid": API_KEY}
     logger.info(f"Fetching AQI for ({lat}, {lon})")
@@ -29,6 +36,20 @@ def fetch_aqi(lat, lon):
     aqi = data["list"][0]["main"]["aqi"]
     components = data["list"][0]["components"]
     return {"aqi": aqi, "pm25": components["pm2_5"], "pm10": components["pm10"]}
+
+
+def fetch_aqi(lat, lon):
+    cache_key = f"aqi:{lat}:{lon}"
+
+    cached = cache.get(cache_key)
+    if cached:
+        logger.info(f"Cache HIT for ({lat}, {lon})")
+        return json.loads(cached)
+
+    logger.info(f"Cache MISS for ({lat}, {lon}) — calling API")
+    reading = _fetch_aqi_from_api(lat, lon)
+    cache.setex(cache_key, CACHE_TTL, json.dumps(reading))
+    return reading
 
 if __name__ == "__main__":
     from database import init_db, save_reading
