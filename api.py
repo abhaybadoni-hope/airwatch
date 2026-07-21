@@ -1,10 +1,15 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from fastapi.staticfiles import StaticFiles
-from database import get_connection
+from database import get_connection, init_db, init_alert_state, init_subscriptions
 import psycopg2.extras
-
 app = FastAPI(title="AirWatch API")
+
+@app.on_event("startup")
+def startup():
+    init_db()
+    init_alert_state()
+    init_subscriptions()
 
 def query_db(query, args=()):
     conn = get_connection()
