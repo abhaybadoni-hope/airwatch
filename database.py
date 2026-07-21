@@ -58,3 +58,17 @@ def set_alert_state(city, is_alerted):
     """, (city, 1 if is_alerted else 0))
     conn.commit()
     conn.close()
+    
+def init_subscriptions():
+    conn = sqlite3.connect(DB_NAME)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS subscriptions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            city TEXT NOT NULL,
+            lat REAL NOT NULL,
+            lon REAL NOT NULL,
+            threshold REAL NOT NULL
+        )
+    """)
+    conn.commit()
+    conn.close()
