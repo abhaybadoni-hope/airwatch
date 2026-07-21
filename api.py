@@ -1,6 +1,7 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 import sqlite3
+from fastapi.staticfiles import StaticFiles
 
 app = FastAPI(title="AirWatch API")
 
@@ -58,3 +59,5 @@ def add_subscription(sub: Subscription):
 @app.get("/subscriptions")
 def list_subscriptions():
     return query_db("SELECT * FROM subscriptions")
+
+app.mount("/dashboard", StaticFiles(directory="static", html=True), name="dashboard")
