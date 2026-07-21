@@ -2,28 +2,38 @@ from apscheduler.schedulers.blocking import BlockingScheduler
 from fetcher import fetch_aqi
 from database import init_db, save_reading
 from notifier import send_alert
+from database import init_db, save_reading, init_alert_state, get_alert_state, set_alert_state
 
 CITIES = [
     {"name": "Delhi", "lat": 28.6139, "lon": 77.2090},
 ]
 
-PM25_THRESHOLD = 10  # µg/m³ — above this, air is unhealthy
+PM25_THRESHOLD = 150 # µg/m³ — above this, air is unhealthy
+
 
 def poll_all_cities():
     for city in CITIES:
+        name = city["name"]
         try:
             reading = fetch_aqi(city["lat"], city["lon"])
-            save_reading(city["name"], reading["aqi"], reading["pm25"], reading["pm10"])
+            save_reading(name, reading["aqi"], reading["pm25"], reading["pm10"])
 
-            # naive alert: fire whenever PM2.5 is over the line
-            if reading["pm25"] > PM25_THRESHOLD:
-                send_alert(f"⚠️ {city['name']}: PM2.5 is {reading['pm25']} — unhealthy air!")
+            currently_bad = reading["pm25"] > PM25_THRESHOLD
+            already_alerted = get_alert_state(name)
+
+            if currently_bad and not already_alerted:
+                send_alert(f"⚠️ {name}: PM2.5 is {reading['pm25']} — unhealthy air!")
+                set_alert_state(name, True)
+            elif not currently_bad and already_alerted:
+                send_alert(f"✅ {name}: PM2.5 back to {reading['pm25']} — air improved.")
+                set_alert_state(name, False)
 
         except Exception as e:
-            print(f"Failed to fetch {city['name']}: {e}")
+            print(f"Failed to fetch {name}: {e}")
 
 if __name__ == "__main__":
     init_db()
+    init_alert_state()
     poll_all_cities()
 
     scheduler = BlockingScheduler()

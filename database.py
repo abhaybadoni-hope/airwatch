@@ -28,6 +28,33 @@ def save_reading(city, aqi, pm25, pm10):
     conn.close()
     print(f"Saved: {city} AQI={aqi} at {datetime.now().strftime('%H:%M:%S')}")
 
-if __name__ == "__main__":
-    init_db()
-    save_reading("Delhi", 3, 89.3, 142.1)  # fake data to test storage — delete later
+def init_alert_state():
+    """Table remembering whether each city is currently in an alerted state."""
+    conn = sqlite3.connect(DB_NAME)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS alert_state (
+            city TEXT PRIMARY KEY,
+            is_alerted INTEGER NOT NULL
+        )
+    """)
+    conn.commit()
+    conn.close()
+
+def get_alert_state(city):
+    """Return True if we've already alerted for this city, else False."""
+    conn = sqlite3.connect(DB_NAME)
+    row = conn.execute(
+        "SELECT is_alerted FROM alert_state WHERE city = ?", (city,)
+    ).fetchone()
+    conn.close()
+    return bool(row[0]) if row else False
+
+def set_alert_state(city, is_alerted):
+    """Record whether this city is currently alerted (uses UPSERT)."""
+    conn = sqlite3.connect(DB_NAME)
+    conn.execute("""
+        INSERT INTO alert_state (city, is_alerted) VALUES (?, ?)
+        ON CONFLICT(city) DO UPDATE SET is_alerted = excluded.is_alerted
+    """, (city, 1 if is_alerted else 0))
+    conn.commit()
+    conn.close()
