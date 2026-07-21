@@ -1,5 +1,6 @@
 from apscheduler.schedulers.blocking import BlockingScheduler
 from fetcher import fetch_aqi
+import logging
 from database import init_db, save_reading
 from notifier import send_alert
 from database import init_db, save_reading, init_alert_state, get_alert_state, set_alert_state
@@ -9,7 +10,7 @@ CITIES = [
 ]
 
 PM25_THRESHOLD = 150 # µg/m³ — above this, air is unhealthy
-
+logger = logging.getLogger(__name__)
 
 def poll_all_cities():
     for city in CITIES:
@@ -29,7 +30,7 @@ def poll_all_cities():
                 set_alert_state(name, False)
 
         except Exception as e:
-            print(f"Failed to fetch {name}: {e}")
+            logger.error(f"Failed to fetch {name}: {e}")
 
 if __name__ == "__main__":
     init_db()
